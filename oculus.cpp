@@ -24,29 +24,60 @@
 #include "GL/glew.h"
 #define OVR_OS_WIN32
 #include "OVR_CAPI_GL.h"
-#include "texture.hpp"
-#include "texture.cpp"
 #include "Kernel/OVR_Math.h"
 #include "SDL_syswm.h"
+#include "Ovladanie.h"
 
-
-
-
-
- 
+#include <iostream>
+#include <fstream>
+#include <thread>
 using namespace OVR;
 using namespace cv;
-using namespace std;
+
 GLuint textureCV;
 int prvyKrat = 0;
- GLuint cvImage(Mat texture_cv);
- int load_textures();
- GLuint textures[2];
- int teplota = 0, rychlost = 0, vlhkost = 0;
+GLuint cvImage(Mat texture_cv);
+int load_textures();
+GLuint textures[2];
+int teplota = 0, rychlost = 0, vlhkost = 0;
+char** dataVypis;
+
+Mat recentFrame;
+Mat recentFrame2;
+
+void task1(VideoCapture cap1 )						//Nacitava framy z kamery1 a uklada do recentFrame
+{
+	bool bSuccess;
+	while(true){
+		try
+		{
+			bSuccess = cap1.read(recentFrame);
+		}catch(int e){}
+		
+	}
+}
+
+void task2(VideoCapture cap2 )						//Nacitava framy z kamery2 a uklada do recentFrame2
+{
+	bool bSuccess;
+	while(true){
+		try
+		{
+			bSuccess = cap2.read(recentFrame2);
+		}catch(int e){}
+	}
+}
+
+void task3Ovaldanie()								//Spusti funkciu ovladanief(), ktora riesi komunikaciu s vozidlom
+{
+		ovladanief();
+}
+
+
 
 int main(int argc, char *argv[])
 {
-        SDL_Init(SDL_INIT_VIDEO);
+        SDL_Init(SDL_INIT_VIDEO);											//Oculus magic
  
         int x = SDL_WINDOWPOS_CENTERED;
         int y = SDL_WINDOWPOS_CENTERED;
@@ -60,16 +91,16 @@ int main(int argc, char *argv[])
  
         if (hmd == NULL)
         {
-                hmd = ovrHmd_CreateDebug(ovrHmd_DK1);
+			hmd = ovrHmd_CreateDebug(ovrHmd_DK1);
  
-                debug = true;
+			debug = true;
         }
  
         if (debug == false)
         {
-                x = hmd->WindowsPos.x;
-                y = hmd->WindowsPos.y;
-                flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+			x = hmd->WindowsPos.x;
+            y = hmd->WindowsPos.y;
+            flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
         }
  
         int w = hmd->Resolution.w;
@@ -110,21 +141,21 @@ int main(int argc, char *argv[])
  
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         {
-                glDeleteFramebuffers(1, &frameBuffer);
-                glDeleteTextures(1, &texture);
-                glDeleteRenderbuffers(1, &renderBuffer);
+			glDeleteFramebuffers(1, &frameBuffer);
+            glDeleteTextures(1, &texture);
+            glDeleteRenderbuffers(1, &renderBuffer);
  
-                SDL_GL_DeleteContext(context);
+            SDL_GL_DeleteContext(context);
  
-                SDL_DestroyWindow(window);
+            SDL_DestroyWindow(window);
  
-                ovrHmd_Destroy(hmd);
+            ovrHmd_Destroy(hmd);
  
-                ovr_Shutdown();
+            ovr_Shutdown();
  
-                SDL_Quit();
+            SDL_Quit();
  
-                return 0;
+            return 0;
         }
  
         ovrFovPort eyeFov[2] = { hmd->DefaultEyeFov[0], hmd->DefaultEyeFov[1] };
@@ -133,8 +164,6 @@ int main(int argc, char *argv[])
         eyeRenderViewport[0].Pos = Vector2i(0, 0);
         eyeRenderViewport[0].Size = Sizei(renderTargetSize.w / 2, renderTargetSize.h);
         eyeRenderViewport[1].Pos = Vector2i((renderTargetSize.w + 1) / 2, 0);
-		//eyeRenderViewport[1].Pos = Vector2i(0, 0);
-		//eyeRenderViewport[1].Pos = Vector2i(0, );
         eyeRenderViewport[1].Size = eyeRenderViewport[0].Size;
  
         ovrGLTexture eyeTexture[2];
@@ -179,8 +208,9 @@ int main(int argc, char *argv[])
         ovrHmd_SetEnabledCaps(hmd, ovrHmdCap_LowPersistence | ovrHmdCap_DynamicPrediction);
  
         ovrHmd_ConfigureTracking(hmd, ovrTrackingCap_Orientation | ovrTrackingCap_MagYawCorrection | ovrTrackingCap_Position, 0);
- 
-        const GLchar *vertexShaderSource[] = {
+		
+       
+		const GLchar *vertexShaderSource[] = {
                 "#version 150\n"
                 "uniform mat4 MVPMatrix;\n"
 				"in vec2 texture_coord;"
@@ -234,15 +264,15 @@ int main(int argc, char *argv[])
         };
 
 		GLfloat texture_coord[] = {
-		0.0, 0.0,
-		1.0, 0.0,
-		1.0, 1.0,
-		0.0, 1.0,
-	};
+			0.0, 0.0,
+			1.0, 0.0,
+			1.0, 1.0,
+			0.0, 1.0,
+		};
 
 		GLuint indices[6] = {
-		0, 1, 2,
-		2, 3, 0
+			0, 1, 2,
+			2, 3, 0
 		};
 
 		
@@ -250,11 +280,11 @@ int main(int argc, char *argv[])
         glGenBuffers(1, &positionBuffer);
         glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices) + sizeof(texture_coord) , vertices, GL_STATIC_DRAW);    // + texture_coord
-       // Transfer the vertex positions:
-	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+        // Transfer the vertex positions:
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
 
-	// Transfer the texture coordinates:
-	glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), sizeof(texture_coord), texture_coord);
+		// Transfer the texture coordinates:
+		glBufferSubData(GL_ARRAY_BUFFER, sizeof(vertices), sizeof(texture_coord), texture_coord);
 		glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
         glEnableVertexAttribArray(positionLocation);
  
@@ -262,58 +292,42 @@ int main(int argc, char *argv[])
 
 
 		GLuint eab;
-	glGenBuffers(1, &eab);
+		glGenBuffers(1, &eab);
+	
+		// Transfer the data from indices to eab
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eab);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-	// Transfer the data from indices to eab
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eab);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-	GLuint TextureIMG;
-	//texture = loadBMP_custom("Untitled.bmp");
-	//texture = cvImage();
-	//glBindTexture(GL_TEXTURE_2D, texture);
-	//http://192.168.1.10:8080/video?dummy=video.mjpg
+		//http://192.168.1.10:8080/video?dummy=video.mjpg
 		//VideoCapture cap("D:\\Movies\\Don-Jon-(2013)-ENG.avi"); 
 		//VideoCapture cap(0); 
-		VideoCapture cap("http://192.168.43.28:8080/video?dummy=video.mjpg");  
-				if ( !cap.isOpened() )  // if not success, exit program
-				 {
-				cout << "Cannot open the video file" << endl;
+		VideoCapture cap("E:\\Download\\nords.mp4");					//Otvorenie 1. streamu
+		if ( !cap.isOpened() )  // if not success, exit program
+		{
+			std::cout << "Cannot open the video stream1" << std::endl;
          
-				}
+		}
 
-				//VideoCapture cap2("M:\\Movies\\Don-Jon-(2013)-ENG.avi"); 
-				//VideoCapture cap2(0);
-				VideoCapture cap2("http://192.168.43.1:8080/video?dummy=video.mjpg"); 
-				if ( !cap2.isOpened() )  // if not success, exit program
-				 {
-				cout << "Cannot open the video file" << endl;
-         
-				}
-	
-	cout << "otvorene streamy" << endl;
-	glGenTextures(2, textures);
+				
+				 
+		VideoCapture cap2("E:\\Download\\datweekaz.mp4");					//Otvorenie 2. streamu
+		if ( !cap2.isOpened() )  // if not success, exit program
+		{
+			std::cout << "Cannot open the video stream2" << std::endl;
+        }
+		
+		std::thread t1(task1, cap);				//Start threadov a citanie stale novych framov z kamery
+		std::thread t2(task2, cap2);
+		std::thread t3(task3Ovaldanie);			//Start threadu, ktory riesi ovladanie vozidla a komunikaciu
 
-	// ---- Grid
-	/*glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, textures[0]);*/
-	//textures[0] = loadBMP_custom("Untitled.bmp");
-	
-	/*glActiveTexture(GL_TEXTURE1);  
-	glBindTexture(GL_TEXTURE_2D, textures[1]);*/
-	//textures[1] = loadBMP_custom("Untitled4.bmp");
-
-	//glActiveTexture(GL_TEXTURE0);
-	//glBindTexture(GL_TEXTURE_2D, textures[0]);
-	
-	//glActiveTexture(GL_TEXTURE1);
-	//glBindTexture(GL_TEXTURE_2D, textures[1]);
+		glGenTextures(2, textures);
 
 
-	// Texture coord attribute
-	GLint texture_coord_attribute = glGetAttribLocation(program, "texture_coord");
-	glVertexAttribPointer(texture_coord_attribute, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid *)sizeof(vertices));
-	glEnableVertexAttribArray(texture_coord_attribute);
+		// Texture coord attribute
+		GLint texture_coord_attribute = glGetAttribLocation(program, "texture_coord");
+		glVertexAttribPointer(texture_coord_attribute, 2, GL_FLOAT, GL_FALSE, 0, (GLvoid *)sizeof(vertices));
+		glEnableVertexAttribArray(texture_coord_attribute);
 
 	
 
@@ -325,11 +339,11 @@ int main(int argc, char *argv[])
  
         bool running = true;
  
-        while (running == true)
+        while (running == true)														//Spustenie cyklu
         {
                 SDL_Event event;
  
-                while (SDL_PollEvent(&event))
+                while (SDL_PollEvent(&event))										//Health sprava
                 {
                         switch (event.type)
                         {
@@ -352,28 +366,13 @@ int main(int argc, char *argv[])
                                 break;
                         }
                 }
-				//--------------------
 
-				//-------------------------------------------------------------
-				
-				
-				//ovrTrackingState trackingState = ovrHmd_GetTrackingState(hmd, ovr_GetTimeInSeconds());
-				////if (trackingState.StatusFlags & (ovrStatus_OrientationTracked | ovrStatus_PositionTracked))
-				////{
-				//	Posef pose = trackingState.HeadPose.ThePose;
-				//	float yaw;
-				//	float eyePitch;
-				//	float eyeRoll;
-				//	pose.Rotation.GetEulerAngles<Axis_Y, Axis_X, Axis_Z>(&yaw, &eyePitch, &eyeRoll);
-				//	cout << yaw << endl;
-				////}
-				//--------------------------------------------------
-				Mat frame[2];
-				//Mat frame2;
-				//cap.retrieve(frame);
-				bool bSuccess = cap.read(frame[0]);
-				bool bSuccess2 = cap2.read(frame[1]);
-
+				//Prva verzia nacitavania framov
+				//Mat frame[2];
+				////Mat frame2;
+				////cap.retrieve(frame);
+				//bool bSuccess = cap.read(frame[0]);
+				//bool bSuccess2 = cap2.read(frame[1]);
 				//if (bSuccess) //if not success, break loop
 				//{
 				//	cvImage(frame);
@@ -383,12 +382,10 @@ int main(int argc, char *argv[])
 				//{
 				//	textures[1] = cvImage(frame2);
 				//}
-
-				
 				//frame[1].release();
 				//glBindTexture(GL_TEXTURE_2D, textures[0]);
 				//glActiveTexture(GL_TEXTURE1);
-	// ---- Grid
+				// 
 				
 
 				//------------------
@@ -400,29 +397,40 @@ int main(int argc, char *argv[])
  
                 ovrPosef eyeRenderPose[2];
  
-                for (int eyeIndex = 0; eyeIndex < ovrEye_Count; eyeIndex++)
+                for (int eyeIndex = 0; eyeIndex < ovrEye_Count; eyeIndex++)							//Pre kazde oko
                 {
-					//-------------------------------------------------
-						if (bSuccess) //if not success, break loop
-						{
-						cvImage(frame[eyeIndex]);
-						}
-						frame[eyeIndex].release();
+
+					if (eyeIndex == 1)																//Pre oko 1 spusti funkciu cvImage pre frame z kamery1 a opacne
+					{
+						cvImage(recentFrame2);		//na pravu polku najnovsi frame z kamery2
+					}else{
+						cvImage(recentFrame);		// na lavu obraz z kamery1
+					}
+
+					
+                    ovrEyeType eye = hmd->EyeRenderOrder[eyeIndex];
+                    eyeRenderPose[eye] = ovrHmd_GetEyePose(hmd, eye);
+						
+					ovrPosef eyeRenderPoseNula;											//Vytvorenie objektu ovrPosef a naplnenie orientacie, potrebne na to, aby obraz nestal na jednom mieste v priestore, ale bol pre ocami
+					eyeRenderPoseNula.Orientation.w = 1;
+					eyeRenderPoseNula.Orientation.x = 0;
+					eyeRenderPoseNula.Orientation.z = 0;
+					eyeRenderPoseNula.Orientation.y = 0;
+
+					//Oculus SDK 0.4.2
+                    Matrix4f MVPMatrix = Matrix4f(ovrMatrix4f_Projection(eyeRenderDesc[eye].Fov, 0.01f, 10000.0f, true)) * Matrix4f::Translation(eyeRenderDesc[eye].ViewAdjust) * Matrix4f(Quatf(eyeRenderPoseNula.Orientation).Inverted());
+					//Oculus SDK 0.4.3
+					//Matrix4f MVPMatrix = Matrix4f(ovrMatrix4f_Projection(eyeRenderDesc[eye].Fov, 0.01f, 10000.0f, true)) * Matrix4f::Translation(eyeRenderDesc[eye].HmdToEyeViewOffset) * Matrix4f(Quatf(eyeRenderPoseNula.Orientation).Inverted());
 
 
-						//----------------------------------------
-						//glBindTexture(GL_TEXTURE_2D, textureCV[eyeIndex]);
-                        ovrEyeType eye = hmd->EyeRenderOrder[eyeIndex];
-                        eyeRenderPose[eye] = ovrHmd_GetEyePose(hmd, eye);
+					
+					glUniformMatrix4fv(MVPMatrixLocation, 1, GL_FALSE, &MVPMatrix.Transposed().M[0][0]);
  
-                        Matrix4f MVPMatrix = Matrix4f(ovrMatrix4f_Projection(eyeRenderDesc[eye].Fov, 0.01f, 10000.0f, true)) * Matrix4f::Translation(eyeRenderDesc[eye].ViewAdjust) * Matrix4f(Quatf(eyeRenderPose[eye].Orientation).Inverted());
- 
-                        glUniformMatrix4fv(MVPMatrixLocation, 1, GL_FALSE, &MVPMatrix.Transposed().M[0][0]);
- 
-                        glViewport(eyeRenderViewport[eye].Pos.x, eyeRenderViewport[eye].Pos.y, eyeRenderViewport[eye].Size.w, eyeRenderViewport[eye].Size.h);
- 
-						glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-                      //  glDrawArrays(GL_TRIANGLES, 0, 6);
+					
+                    glViewport(eyeRenderViewport[eye].Pos.x, eyeRenderViewport[eye].Pos.y, eyeRenderViewport[eye].Size.w, eyeRenderViewport[eye].Size.h);
+							
+					glDrawElements( GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);		//Vykresli texturu
+                    
                 }
  
                 glBindVertexArray(0);
@@ -459,60 +467,49 @@ int main(int argc, char *argv[])
 
 
 
-GLuint cvImage(Mat texture_cv){
-//cv::Mat texture_cv = cv::imread("test.jpg");
-cv::Mat flipped;
-teplota++;
-rychlost++;
-vlhkost++;
-char teplotaa[250] = "";
-sprintf(teplotaa, "Teplota %d", teplota/50);
-char vlkosta[250] = "";
-sprintf(vlkosta, "Vlhkost %d", rychlost/80);
-char rychlosta[250] = "";
-sprintf(rychlosta, "Rychlost %d", vlhkost/20);
-cv::putText(texture_cv, teplotaa, cvPoint(260,100), FONT_HERSHEY_COMPLEX_SMALL, 1, cvScalar(200,200,250), 2, CV_AA); //TEXT do OpenCV MAT
-cv::putText(texture_cv, vlkosta, cvPoint(260,120), FONT_HERSHEY_COMPLEX_SMALL, 1, cvScalar(200,200,250), 2, CV_AA); //TEXT do OpenCV MAT
-cv::putText(texture_cv, rychlosta, cvPoint(260,140), FONT_HERSHEY_COMPLEX_SMALL, 1, cvScalar(200,200,250), 2, CV_AA); //TEXT do OpenCV MAT
+GLuint cvImage(Mat texture_cv){     //Funkcia na konverziu OpenCV Mat na OpenGL texturu a pridanie textu
+	cv::Mat flipped;
+	teplota++;
+	rychlost++;
+	vlhkost++;
+	char teplotaa[250] = "";							//Docasne vztvaranie random textu
+	sprintf(teplotaa, "Teplota %d", teplota/50);
+	char vlkosta[250] = "";
+	sprintf(vlkosta, "Vlhkost %d", rychlost/80);
+	char rychlosta[5000] = "";
 
 
-cv::flip(texture_cv, flipped, 0);
-texture_cv = flipped;       
+	sprintf(rychlosta, "Data %s",getDataOvladanie());
+
+	cv::putText(texture_cv, teplotaa, cvPoint(460,200), FONT_HERSHEY_COMPLEX_SMALL, 1, cvScalar(200,200,250), 2, CV_AA);	//Vlozenie textu do OpenCV Mat
+	cv::putText(texture_cv, vlkosta, cvPoint(460,220), FONT_HERSHEY_COMPLEX_SMALL, 1, cvScalar(200,200,250), 2, CV_AA);		//Vlozenie textu do OpenCV Mat
+	cv::putText(texture_cv, rychlosta, cvPoint(460,240), FONT_HERSHEY_COMPLEX_SMALL, 1, cvScalar(200,200,250), 2, CV_AA);	//Vlozenie textu do OpenCV Mat
+
+
+	cv::flip(texture_cv, flipped, 0);				//Otocenie textury
+	texture_cv = flipped;       
 
 
 
 
-		if(prvyKrat == 0){
-			glGenTextures(1, &textureCV);                  // Create The Texture
-			prvyKrat++;
-		}
+	if(prvyKrat == 0){
+		glGenTextures(1, &textureCV);                  //Ak sa funkcia spustila 1. krat, tak vztvor OpenGL texturu, treba spustit len raz, inac sa zahlti RAM
+		prvyKrat++;
+	}
 
 		
-        glBindTexture(GL_TEXTURE_2D, textureCV);               
-        glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR); 
-        glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR); 
-        glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S , GL_REPEAT );
-        glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture_cv.cols, texture_cv.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, texture_cv.data);
+    glBindTexture(GL_TEXTURE_2D, textureCV);            //Namapovanie Mat do OpenGL textury
+    glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR); 
+    glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR); 
+    glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S , GL_REPEAT );
+    glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, 3, texture_cv.cols, texture_cv.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, texture_cv.data);
 		
 	
-		
-		/*glActiveTexture(GL_TEXTURE1); 
-		glBindTexture(GL_TEXTURE_2D, textureCV[1]);               
-        glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR); 
-        glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR); 
-        glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S , GL_REPEAT );
-        glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture_cv2.cols, texture_cv2.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, texture_cv2.data);*/
-		
-
-
-	texture_cv.release();
-		//texture_cv2.release();
-		flipped.release();
-return textureCV;
+	texture_cv.release();    
+	flipped.release();
+	return textureCV;
   
 }
 
